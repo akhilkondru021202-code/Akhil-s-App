@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PriceScope — compare prices across stores</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#fff; --ink:#14181f; --muted:#667085; --line:#e4e7ec;
+    --accent:#0f766e; --accent-soft:#e6f4f2; --bar:#94a3b8; --warn:#b54708; --warn-soft:#fef6ee;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
+  .wrap{max-width:1180px;margin:0 auto;padding:24px 20px 60px}
+  header{display:flex;align-items:center;gap:14px;margin-bottom:18px}
+  .logo{width:34px;height:34px;border-radius:9px;background:var(--accent);display:grid;place-items:center;color:#fff;font-weight:700}
+  h1{font-size:20px;margin:0;letter-spacing:-.01em}
+  header .sub{color:var(--muted);font-size:13px}
+  nav{margin-left:auto;display:flex;gap:4px;background:#eceef2;padding:3px;border-radius:9px}
+  nav button{border:0;background:transparent;padding:7px 14px;border-radius:7px;font:inherit;font-weight:500;color:var(--muted);cursor:pointer}
+  nav button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+  .banner{background:var(--warn-soft);color:var(--warn);border:1px solid #f9dbaf;padding:10px 14px;border-radius:10px;margin-bottom:16px;font-size:13px;line-height:1.5}
+  .banner code{background:#fff;padding:1px 6px;border-radius:4px}
+  form.search{display:flex;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px}
+  form.search input{flex:1;border:0;font:inherit;font-size:16px;padding:8px 10px;outline:none;min-width:0}
+  select,button.primary{font:inherit;border-radius:8px;border:1px solid var(--line);padding:8px 10px;background:#fff}
+  button.primary{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600;padding:8px 18px;cursor:pointer}
+  button.primary:disabled{opacity:.6;cursor:wait}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin:10px 2px 0}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:99px;padding:4px 11px;font-size:12px;color:var(--muted);cursor:pointer}
+  .chip:hover{color:var(--ink);border-color:#cbd2dc}
+  .grid{display:grid;gap:14px;margin-top:18px}
+  .tiles{grid-template-columns:repeat(5,1fr)}
+  .tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .tile .k{font-size:12px;color:var(--muted)}
+  .tile .v{font-size:22px;font-weight:600;margin-top:4px;font-variant-numeric:tabular-nums}
+  .tile .s{font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tile.best{background:var(--accent-soft);border-color:#b7e0da}
+  .tile.best .v{color:var(--accent)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .card h2{font-size:15px;margin:0 0 2px}
+  .card .note{font-size:12px;color:var(--muted);margin-bottom:12px}
+  .two{grid-template-columns:1.25fr 1fr}
+  .chartbox{position:relative;height:360px}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;font-size:12px;color:var(--muted);font-weight:500;border-bottom:1px solid var(--line);padding:8px 6px;cursor:pointer;user-select:none;white-space:nowrap}
+  td{padding:9px 6px;border-bottom:1px solid #f0f2f5;vertical-align:middle}
+  td.num{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+  th.num{text-align:right}
+  tr.best td{background:#f3faf9}
+  .tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:99px;background:var(--accent-soft);color:var(--accent);font-weight:600;margin-left:6px}
+  .strike{color:var(--muted);text-decoration:line-through;font-size:12px;margin-left:4px}
+  .ttl{max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+  .thumb{width:36px;height:36px;object-fit:contain;border-radius:6px;background:#f2f4f7}
+  a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+  .store{font-weight:500}
+  a.buy{display:inline-block;background:var(--accent);color:#fff;font-weight:600;font-size:12px;padding:6px 12px;border-radius:7px;white-space:nowrap}
+  a.buy:hover{text-decoration:none;filter:brightness(1.1)}
+  a.buy.alt{background:#fff;color:var(--accent);border:1px solid #b7e0da}
+  tr.best a.buy{box-shadow:0 0 0 2px #b7e0da}
+  .muted{color:var(--muted)}
+  .empty{text-align:center;padding:60px 20px;color:var(--muted)}
+  .empty b{display:block;color:var(--ink);font-size:16px;margin-bottom:6px}
+  .filters{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+  .filters input{font:inherit;border:1px solid var(--line);border-radius:8px;padding:6px 9px;width:200px}
+  .err{color:#b42318;margin-top:12px}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid #fff;border-right-color:transparent;border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px;margin-right:6px}
+  @keyframes s{to{transform:rotate(360deg)}}
+  .hist-list{display:flex;flex-direction:column;gap:6px}
+  .hist-item{display:flex;align-items:center;gap:8px;padding:9px 10px;border:1px solid var(--line);border-radius:9px;cursor:pointer;background:#fff}
+  .hist-item.on{border-color:var(--accent);background:var(--accent-soft)}
+  .hist-item .q{font-weight:500;flex:1}
+  .hist-item button{border:0;background:none;color:var(--muted);cursor:pointer;font-size:12px}
+  .foot{margin-top:24px;font-size:12px;color:var(--muted)}
+  @media (max-width:900px){.tiles{grid-template-columns:repeat(2,1fr)}.two{grid-template-columns:1fr}nav{display:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">₹</div>
+    <div><h1>PriceScope</h1><div class="sub">One search, every store, cheapest first</div></div>
+    <nav><button id="tabCompare" class="on">Compare</button><button id="tabHistory">Price history</button></nav>
+  </header>
+
+  <div id="demoBanner" class="banner" hidden>
+    <b>Demo mode — sample prices, not real.</b> For live prices from Amazon, Flipkart, Croma and every other store Google Shopping lists,
+    get a free key at <a href="https://serpapi.com/manage-api-key" target="_blank" rel="noopener">serpapi.com</a> and paste it here:
+    <span style="display:inline-flex;gap:6px;margin-top:6px;width:100%">
+      <input id="keyInput" placeholder="Paste your SerpApi API key" style="flex:1;font:inherit;border:1px solid #f9dbaf;border-radius:7px;padding:6px 9px">
+      <button class="primary" id="saveKey" type="button">Save key</button>
+    </span>
+  </div>
+
+  <!-- COMPARE VIEW -->
+  <section id="viewCompare">
+    <form class="search" id="searchForm">
+      <input id="q" placeholder="Search any product — e.g. iPhone 16 128GB, Sony WH-1000XM5, Prestige pressure cooker 5L" autocomplete="off">
+      <select id="gl" title="Country"></select>
+      <select id="sort" title="Sort">
+        <option value="price_asc">Lowest price</option>
+        <option value="price_desc">Highest price</option>
+        <option value="rating">Best rated</option>
+      </select>
+      <button class="primary" id="go">Compare</button>
+    </form>
+    <div class="chips" id="chips"></div>
+    <div id="err" class="err"></div>
+
+    <div id="results" hidden>
+      <div class="grid tiles" id="tiles"></div>
+
+      <div class="grid two">
+        <div class="card">
+          <h2>Lowest price at each store</h2>
+          <div class="note" id="chartNote">Cheapest matching listing per store. Green = best deal.</div>
+          <div class="chartbox"><canvas id="storeChart"></canvas></div>
+        </div>
+        <div class="card">
+          <h2>Price spread</h2>
+          <div class="note">How every listing is distributed — tells you whether a "deal" is really low.</div>
+          <div class="chartbox"><canvas id="spreadChart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="grid"><div class="card">
+        <div class="filters">
+          <h2 style="margin:0;flex:1">All listings <span class="muted" id="count"></span></h2>
+          <input id="filterText" placeholder="Filter by title or store">
+          <select id="storeFilter"><option value="">All stores</option></select>
+        </div>
+        <div style="overflow-x:auto"><table id="tbl">
+          <thead><tr>
+            <th style="width:44px"></th>
+            <th data-k="title">Product</th>
+            <th data-k="store">Store</th>
+            <th data-k="price" class="num">Price</th>
+            <th data-k="rating" class="num">Rating</th>
+            <th>Delivery</th>
+            <th style="text-align:center">Buy</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </div></div>
+    </div>
+
+    <div id="emptyState" class="empty">
+      <b>Search for any product to compare prices</b>
+      Results come from every store that lists it — marketplaces, brand stores and electronics chains.
+    </div>
+  </section>
+
+  <!-- HISTORY VIEW -->
+  <section id="viewHistory" hidden>
+    <div class="grid two" style="margin-top:0">
+      <div class="card">
+        <h2 id="histTitle">Price history</h2>
+        <div class="note">Lowest price per store each time you searched. Search the same product again later to add a point.</div>
+        <div class="chartbox"><canvas id="histChart"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>Searched products</h2>
+        <div class="note" id="histNote">Every live search is saved on your computer (price_history.json).</div>
+        <div class="hist-list" id="histList"></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="foot" id="foot"></div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const PALETTE = ["#0f766e","#2563eb","#c2410c","#7c3aed","#be123c","#0891b2","#65a30d","#a16207","#475569","#db2777"];
+let state = {data:null, sortKey:"price", sortDir:1, charts:{}, cfg:null, histKey:null};
+
+function money(v, cur){ if(v==null) return "—"; const d = (v >= 100 || Number.isInteger(v)) ? 0 : 2;
+  return (cur||state.data?.currency||"") + Number(v).toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d}); }
+function esc(s){ return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+async function init(){
+  const cfg = await fetch("/api/config").then(r=>r.json());
+  state.cfg = cfg;
+  $("#demoBanner").hidden = !cfg.demo;
+  if(cfg.hosted && cfg.demo) $("#demoBanner").innerHTML = "<b>Demo mode — sample prices, not real.</b> The owner hasn't added a price-data key yet.";
+  for(const [k,v] of Object.entries(cfg.countries)) $("#gl").insertAdjacentHTML("beforeend",`<option value="${k}">${v}</option>`);
+  try{ $("#gl").value = localStorage.getItem("ps_gl") || "in"; }catch(e){}
+  ["iPhone 16 128GB","Samsung Galaxy S25","Sony WH-1000XM5","boAt Airdopes 141","Philips air fryer","MacBook Air M4"].forEach(t=>{
+    const b=document.createElement("button"); b.className="chip"; b.type="button"; b.textContent=t;
+    b.onclick=()=>{ $("#q").value=t; search(); }; $("#chips").appendChild(b);
+  });
+  $("#foot").textContent = cfg.demo ? "Demo data is generated for illustration and does not reflect any real store." :
+    "Prices from Google Shopping via SerpApi. Always confirm the final price, seller and variant on the store's page before buying.";
+}
+
+$("#saveKey").addEventListener("click", async () => {
+  const key=$("#keyInput").value.trim(); if(!key) return;
+  const r=await fetch("/api/key",{method:"POST",body:JSON.stringify({key})}).then(r=>r.json());
+  state.cfg.demo=r.demo; $("#demoBanner").hidden=!r.demo;
+  $("#foot").textContent="Prices from Google Shopping via SerpApi. Always confirm the final price, seller and variant on the store's page before buying.";
+  if(state.data) search();
+});
+$("#searchForm").addEventListener("submit", e => { e.preventDefault(); search(); });
+$("#sort").addEventListener("change", () => { if(state.data) search(); });
+
+async function search(){
+  const q = $("#q").value.trim(); if(!q) return;
+  try{ localStorage.setItem("ps_gl",$("#gl").value); }catch(e){}
+  const btn=$("#go"); btn.disabled=true; btn.innerHTML='<span class="spin"></span>Searching';
+  $("#err").textContent="";
+  try{
+    const r = await fetch(`/api/search?q=${encodeURIComponent(q)}&gl=${$("#gl").value}&sort=${$("#sort").value}`);
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.error||"Search failed");
+    if(!d.items.length) throw new Error("No priced listings found. Try a broader or differently worded search.");
+    state.data=d; state.sortKey = {price_asc:"price",price_desc:"price",rating:"rating"}[$("#sort").value];
+    state.sortDir = $("#sort").value==="price_asc"?1:-1;
+    render();
+  }catch(e){ $("#err").textContent = e.message; }
+  finally{ btn.disabled=false; btn.textContent="Compare"; }
+}
+
+function render(){
+  const d=state.data, s=d.stats, best=d.by_store[0], top=d.items.reduce((a,b)=>b.price>a.price?b:a);
+  $("#emptyState").hidden=true; $("#results").hidden=false;
+  const save = s.max - s.min;
+  $("#tiles").innerHTML = `
+    <div class="tile best"><div class="k">Best price</div><div class="v">${money(s.min)}</div><div class="s">at ${esc(best.store)}</div></div>
+    <div class="tile"><div class="k">Highest price</div><div class="v">${money(s.max)}</div><div class="s">at ${esc(top.store)}</div></div>
+    <div class="tile"><div class="k">You save vs. highest</div><div class="v">${money(save)}</div><div class="s">${s.max? Math.round(save/s.max*100):0}% cheaper</div></div>
+    <div class="tile"><div class="k">Median price</div><div class="v">${money(s.median)}</div><div class="s">typical market price</div></div>
+    <div class="tile"><div class="k">Coverage</div><div class="v">${s.stores} stores</div><div class="s">${s.listings} listings · ${esc(d.fetched_at)}</div></div>`;
+  $("#chartNote").textContent = `Cheapest matching listing per store for “${d.query}” (${d.country}). Green = best deal.`;
+  drawStoreChart(); drawSpread();
+  const sf=$("#storeFilter"); sf.innerHTML='<option value="">All stores</option>'+d.by_store.map(x=>`<option>${esc(x.store)}</option>`).join("");
+  renderTable();
+}
+
+function drawStoreChart(){
+  const d=state.data, rows=d.by_store.slice(0,15);
+  state.charts.store?.destroy();
+  state.charts.store = new Chart($("#storeChart"),{
+    type:"bar",
+    data:{labels:rows.map(r=>r.store), datasets:[{data:rows.map(r=>r.min),
+      backgroundColor:rows.map((r,i)=>i===0?"#0f766e":"#94a3b8"), borderRadius:4, barThickness:"flex", maxBarThickness:22}]},
+    options:{indexAxis:"y",maintainAspectRatio:false,plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:c=>{const r=rows[c.dataIndex];return [money(r.min), r.count>1?`${r.count} listings (up to ${money(r.max)})`:"1 listing", r.best.title.slice(0,60)]}}}},
+      scales:{x:{grid:{color:"#f0f2f5"},ticks:{callback:v=>money(v)}},y:{grid:{display:false}}},
+      onClick:(e,els)=>{ if(els.length){ $("#storeFilter").value=rows[els[0].index].store; renderTable(); $("#tbl").scrollIntoView({behavior:"smooth"}); } }}
+  });
+}
+
+function drawSpread(){
+  const d=state.data, prices=d.items.map(i=>i.price), lo=Math.min(...prices), hi=Math.max(...prices);
+  const n = Math.min(10, Math.max(4, Math.ceil(Math.sqrt(prices.length)))), w=(hi-lo)/n || 1;
+  const bins=Array(n).fill(0); prices.forEach(p=>bins[Math.min(n-1,Math.floor((p-lo)/w))]++);
+  const labels=bins.map((_,i)=>money(lo+i*w));
+  state.charts.spread?.destroy();
+  state.charts.spread=new Chart($("#spreadChart"),{type:"bar",
+    data:{labels,datasets:[{data:bins,backgroundColor:bins.map((_,i)=>i===0?"#0f766e":"#cbd5e1"),borderRadius:3,categoryPercentage:.95,barPercentage:1}]},
+    options:{maintainAspectRatio:false,plugins:{legend:{display:false},
+      tooltip:{callbacks:{title:c=>`${money(lo+c[0].dataIndex*w)} – ${money(lo+(c[0].dataIndex+1)*w)}`,label:c=>`${c.raw} listing${c.raw===1?"":"s"}`}}},
+      scales:{y:{beginAtZero:true,ticks:{precision:0},grid:{color:"#f0f2f5"},title:{display:true,text:"listings"}},x:{grid:{display:false},ticks:{maxRotation:0,autoSkip:true}}}}});
+}
+
+function buyUrl(i){
+  if(i.link) return i.link;
+  const q = encodeURIComponent(`${i.title} ${i.store}`);
+  return `https://www.google.com/search?q=${q}`;
+}
+function buyBtn(i){
+  const label = i.link ? "Buy" : "Find";
+  const tip = i.link ? `Open ${i.store} to buy` : `Search for this item at ${i.store}`;
+  return `<a class="buy${i.link?"":" alt"}" href="${esc(buyUrl(i))}" target="_blank" rel="noopener" title="${esc(tip)}">${label} ↗</a>`;
+}
+
+function renderTable(){
+  const d=state.data, ft=$("#filterText").value.toLowerCase(), sf=$("#storeFilter").value, k=state.sortKey, dir=state.sortDir;
+  let rows=d.items.filter(i=>(!sf||i.store===sf)&&(!ft||(i.title+" "+i.store).toLowerCase().includes(ft)));
+  rows.sort((a,b)=>{const x=a[k]??"",y=b[k]??""; return (typeof x==="number"&&typeof y==="number"? x-y : String(x).localeCompare(String(y)))*dir;});
+  const min=d.stats.min;
+  $("#count").textContent=`(${rows.length})`;
+  $("#tbl tbody").innerHTML = rows.map(i=>`<tr class="${i.price===min?"best":""}">
+    <td>${i.thumbnail?`<img class="thumb" src="${esc(i.thumbnail)}" alt="">`:""}</td>
+    <td><span class="ttl" title="${esc(i.title)}">${esc(i.title)}</span></td>
+    <td class="store">${esc(i.store)}</td>
+    <td class="num"><b>${money(i.price)}</b>${i.old_price&&i.old_price>i.price?`<span class="strike">${money(i.old_price)}</span>`:""}${i.price===min?'<span class="tag">Lowest</span>':""}</td>
+    <td class="num">${i.rating?`${i.rating}★ <span class="muted">${i.reviews?"("+esc(i.reviews)+")":""}</span>`:'<span class="muted">—</span>'}</td>
+    <td class="muted">${esc(i.delivery)}</td>
+    <td style="text-align:center">${buyBtn(i)}</td></tr>`).join("");
+}
+$("#filterText").addEventListener("input",renderTable);
+$("#storeFilter").addEventListener("change",renderTable);
+document.querySelectorAll("#tbl th[data-k]").forEach(th=>th.addEventListener("click",()=>{
+  const k=th.dataset.k; state.sortDir = state.sortKey===k ? -state.sortDir : 1; state.sortKey=k; renderTable(); }));
+
+/* ---- tabs & history ---- */
+function show(view){
+  $("#viewCompare").hidden = view!=="compare"; $("#viewHistory").hidden = view!=="history";
+  $("#tabCompare").classList.toggle("on",view==="compare"); $("#tabHistory").classList.toggle("on",view==="history");
+  if(view==="history") loadHistory();
+}
+$("#tabCompare").onclick=()=>show("compare"); $("#tabHistory").onclick=()=>show("history");
+
+async function loadHistory(){
+  if(state.cfg.hosted) $("#histNote").textContent="Recent live searches by everyone using this site. History resets when the server restarts.";
+  const h = await fetch("/api/history").then(r=>r.json());
+  const keys=Object.keys(h).sort((a,b)=>(h[b].points.at(-1)?.t||"").localeCompare(h[a].points.at(-1)?.t||""));
+  if(!keys.length){
+    $("#histList").innerHTML=`<div class="muted">${state.cfg.demo?"History is saved for live searches only (demo data isn't stored).":"No searches yet. Compare a product and it will appear here."}</div>`;
+    state.charts.hist?.destroy(); return;
+  }
+  if(!state.histKey || !h[state.histKey]) state.histKey=keys[0];
+  $("#histList").innerHTML = keys.map(k=>`<div class="hist-item ${k===state.histKey?"on":""}" data-k="${esc(k)}">
+     <span class="q">${esc(h[k].query)}</span><span class="muted">${h[k].points.length} pt · ${esc(h[k].country)}</span>
+     ${state.cfg.hosted?"":`<button data-del="${esc(k)}" title="Remove">✕</button>`}</div>`).join("");
+  $("#histList").querySelectorAll(".hist-item").forEach(el=>el.onclick=e=>{
+    if(e.target.dataset.del){ fetch("/api/track",{method:"POST",body:JSON.stringify({key:e.target.dataset.del,delete:true})}).then(loadHistory); return; }
+    state.histKey=el.dataset.k; loadHistory(); });
+  drawHistory(h[state.histKey]);
+}
+
+function drawHistory(e){
+  $("#histTitle").textContent = `Price history — ${e.query}`;
+  const labels=e.points.map(p=>p.t);
+  const totals={}; e.points.forEach(p=>Object.entries(p.stores).forEach(([s,v])=>{totals[s]=Math.min(totals[s]??Infinity,v)}));
+  const stores=Object.keys(totals).sort((a,b)=>totals[a]-totals[b]).slice(0,8);
+  state.charts.hist?.destroy();
+  state.charts.hist=new Chart($("#histChart"),{type:"line",
+    data:{labels,datasets:stores.map((s,i)=>({label:s,data:e.points.map(p=>p.stores[s]??null),borderColor:PALETTE[i%PALETTE.length],
+      backgroundColor:PALETTE[i%PALETTE.length],spanGaps:true,tension:.2,pointRadius:3,borderWidth:2}))},
+    options:{maintainAspectRatio:false,interaction:{mode:"index",intersect:false},
+      plugins:{legend:{position:"bottom",labels:{boxWidth:10,usePointStyle:true}},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${money(c.raw,e.currency)}`}}},
+      scales:{y:{grid:{color:"#f0f2f5"},ticks:{callback:v=>money(v,e.currency)}},x:{grid:{display:false}}}}});
+}
+
+init();
+</script>
+</body>
+</html>

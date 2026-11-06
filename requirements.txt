@@ -1,0 +1,1 @@
+# No extra packages needed - PriceScope uses only the Python standard library.
